@@ -84,7 +84,7 @@ class RefreshTask:
                     if not self.running:
                         break
 
-                    if self.device_config.get_config("inverted_image"):
+                    if self.device_config.get_config("log_system_stats"):
                         self.log_system_stats()
 
                     playlist_manager = self.device_config.get_playlist_manager()
