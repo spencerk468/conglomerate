@@ -49,6 +49,11 @@ def save_settings():
             }
         }
         device_config.update_config(settings)
+
+        if form_data.get("interval"):
+            # wake the background thread up to signal interval config change
+            refresh_task = current_app.config['REFRESH_TASK']
+            refresh_task.signal_config_change()
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 500
     except Exception as e:

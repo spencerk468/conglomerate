@@ -84,9 +84,6 @@ class RefreshTask:
                     if not self.running:
                         break
 
-                    if self.device_config.get_config("log_system_stats"):
-                        self.log_system_stats()
-
                     playlist_manager = self.device_config.get_playlist_manager()
                     latest_refresh = self.device_config.get_refresh_info()
                     current_dt = self._get_current_datetime()
@@ -98,6 +95,10 @@ class RefreshTask:
                         refresh_action = self.manual_update_request
                         self.manual_update_request = ()
                     else:
+
+                        if self.device_config.get_config("log_system_stats"):
+                            self.log_system_stats()
+
                         # handle refresh based on playlists
                         logger.info(f"Running interval refresh check. | current_time: {current_dt.strftime('%Y-%m-%d %H:%M:%S')}")
                         playlist, plugin_instance = self._determine_next_plugin(playlist_manager, latest_refresh, current_dt)
@@ -127,7 +128,7 @@ class RefreshTask:
                         self.device_config.write_config()
 
             except Exception as e:
-                logging.exception('Exception during refresh')
+                logger.exception('Exception during refresh')
                 self.refresh_result["exception"] = e  # Capture exception
             finally:
                 self.refresh_event.set()
@@ -147,6 +148,12 @@ class RefreshTask:
                 raise self.refresh_result.get("exception")
         else:
             logger.warn("Background refresh task is not running, unable to do a manual update")
+
+    def signal_config_change(self):
+        """Notify the background thread that config has changed (e.g., interval updated)."""
+        if self.running:
+            with self.condition:
+                self.condition.notify_all()
 
     def _get_current_datetime(self):
         """Retrieves the current datetime based on the device's configured timezone."""
