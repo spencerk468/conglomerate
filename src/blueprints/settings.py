@@ -29,6 +29,7 @@ def save_settings():
             return jsonify({"error": "Time Zone is required"}), 400
         if not time_format or time_format not in ["12h", "24h"]:
             return jsonify({"error": "Time format is required"}), 400
+        previous_interval_seconds = device_config.get_config("plugin_cycle_interval_seconds")
         plugin_cycle_interval_seconds = calculate_seconds(int(interval), unit)
         if plugin_cycle_interval_seconds > 86400 or plugin_cycle_interval_seconds <= 0:
             return jsonify({"error": "Plugin cycle interval must be less than 24 hours"}), 400
@@ -50,7 +51,7 @@ def save_settings():
         }
         device_config.update_config(settings)
 
-        if plugin_cycle_interval_seconds != device_config.get_config("plugin_cycle_interval_seconds"):
+        if plugin_cycle_interval_seconds != previous_interval_seconds:
             # wake the background thread up to signal interval config change
             refresh_task = current_app.config['REFRESH_TASK']
             refresh_task.signal_config_change()
