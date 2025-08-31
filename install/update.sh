@@ -16,6 +16,7 @@ SCRIPT_DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
 
 APPNAME="inkypi"
 INSTALL_PATH="/usr/local/$APPNAME"
+BINPATH="/usr/local/bin"
 VENV_PATH="$INSTALL_PATH/venv_$APPNAME"
 
 APT_REQUIREMENTS_FILE="$SCRIPT_DIR/debian-requirements.txt"
@@ -44,6 +45,12 @@ else
   exit 1
 fi
 
+echo "Starting zramswap service."
+echo -e "ALGO=zstd\nPERCENT=60" | sudo tee /etc/default/zramswap > /dev/null
+sudo systemctl enable --now zramswap
+echo "Starting earlyoom service."
+sudo systemctl enable --now earlyoom
+
 # Check if virtual environment exists
 if [ ! -d "$VENV_PATH" ]; then
   echo_error "ERROR: Virtual environment not found at $VENV_PATH. Run the installation script first."
@@ -66,7 +73,12 @@ else
   exit 1
 fi
 
+echo "Updating executable in ${BINPATH}/$APPNAME"
+cp $SCRIPT_DIR/inkypi $BINPATH/
+sudo chmod +x $BINPATH/$APPNAME
+
 echo "Restarting $APPNAME service."
+sudo systemctl daemon-reload
 sudo systemctl restart $APPNAME.service
 
 echo_success "Update completed."

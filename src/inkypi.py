@@ -15,6 +15,7 @@ import sys
 import json
 import logging
 import threading
+import argparse
 from utils.app_utils import generate_startup_image
 from flask import Flask, request
 from werkzeug.serving import is_running_from_reloader
@@ -27,11 +28,27 @@ from blueprints.plugin import plugin_bp
 from blueprints.playlist import playlist_bp
 from jinja2 import ChoiceLoader, FileSystemLoader
 from plugins.plugin_registry import load_plugins
+from waitress import serve
 
 
 logger = logging.getLogger(__name__)
 
-logger.info("Starting web server")
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='InkyPi Display Server')
+parser.add_argument('--dev', action='store_true', help='Run in development mode')
+args = parser.parse_args()
+
+# Set development mode settings
+if args.dev:
+    Config.config_file = os.path.join(Config.BASE_DIR, "config", "device_dev.json")
+    DEV_MODE = True
+    PORT = 8080
+    logger.info("Starting InkyPi in DEVELOPMENT mode on port 8080")
+else:
+    DEV_MODE = False
+    PORT = 80
+    logger.info("Starting InkyPi in PRODUCTION mode on port 80")
+logging.getLogger('waitress.queue').setLevel(logging.ERROR)
 app = Flask(__name__)
 template_dirs = [
    os.path.join(os.path.dirname(__file__), "templates"),    # Default template folder
@@ -60,11 +77,9 @@ app.register_blueprint(plugin_bp)
 app.register_blueprint(playlist_bp)
 
 if __name__ == '__main__':
-    from werkzeug.serving import is_running_from_reloader
 
     # start the background refresh task
-    if not is_running_from_reloader():
-        refresh_task.start()
+    refresh_task.start()
 
     # display default inkypi image on startup
     if device_config.get_config("startup") is True:
@@ -76,6 +91,19 @@ if __name__ == '__main__':
     try:
         # Run the Flask app
         app.secret_key = str(random.randint(100000,999999))
-        app.run(host="0.0.0.0", port=80)
+        
+        # Get local IP address for display (only in dev mode when running on non-Pi)
+        if DEV_MODE:
+            import socket
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect(("8.8.8.8", 80))
+                local_ip = s.getsockname()[0]
+                s.close()
+                logger.info(f"Serving on http://{local_ip}:{PORT}")
+            except:
+                pass  # Ignore if we can't get the IP
+            
+        serve(app, host="0.0.0.0", port=PORT, threads=1)
     finally:
         refresh_task.stop()

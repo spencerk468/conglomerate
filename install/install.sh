@@ -181,12 +181,24 @@ echo_blue() {
 
 install_debian_dependencies() {
   if [ -f "$APT_REQUIREMENTS_FILE" ]; then
+    sudo apt-get update > /dev/null &
+    show_loader "Fetch available system dependencies updates. " 
+
     xargs -a "$APT_REQUIREMENTS_FILE" sudo apt-get install -y > /dev/null &
     show_loader "Installing system dependencies. "
   else
     echo "ERROR: System dependencies file $APT_REQUIREMENTS_FILE not found!"
     exit 1
   fi
+}
+
+setup_memory_management() {
+  echo "Enabling and starting zramswap service."
+  echo -e "ALGO=zstd\nPERCENT=60" | sudo tee /etc/default/zramswap > /dev/null
+  sudo systemctl enable --now zramswap
+
+  echo "Enabling and starting earlyoom service."
+  sudo systemctl enable --now earlyoom
 }
 
 create_venv(){
@@ -339,6 +351,7 @@ if [[ -n "$WS_TYPE" ]]; then
 fi
 enable_interfaces
 install_debian_dependencies
+setup_memory_management
 copy_project
 create_venv
 install_executable

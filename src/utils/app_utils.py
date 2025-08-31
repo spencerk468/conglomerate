@@ -1,6 +1,7 @@
 import logging
 import os
 import socket
+import subprocess
 
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -40,8 +41,12 @@ FONTS = {
 }
 
 def resolve_path(file_path):
-    src_path = Path(os.getenv("SRC_DIR"))
-
+    src_dir = os.getenv("SRC_DIR")
+    if src_dir is None:
+        # Default to the src directory
+        src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    src_path = Path(src_dir)
     return str(src_path / file_path)
 
 def get_ip_address():
@@ -127,7 +132,7 @@ def parse_form(request_form):
     return request_dict
 
 def handle_request_files(request_files, form_data={}):
-    allowed_file_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+    allowed_file_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp'}
     file_location_map = {}
     # handle existing file locations being provided as part of the form data
     for key in set(request_files.keys()):

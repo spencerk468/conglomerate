@@ -55,10 +55,10 @@ def resize_image(image, desired_size, image_settings=[]):
             y_offset = (img_height - new_height) // 2
 
     # Step 2: Crop the image
-    cropped_image = image.crop((x_offset, y_offset, x_offset + new_width, y_offset + new_height))
+    image = image.crop((x_offset, y_offset, x_offset + new_width, y_offset + new_height))
 
     # Step 3: Resize to the exact desired dimensions (if necessary)
-    return cropped_image.resize((desired_width, desired_height), Image.LANCZOS)
+    return image.resize((desired_width, desired_height), Image.LANCZOS)
 
 def apply_image_enhancement(img, image_settings={}):
 
@@ -108,10 +108,23 @@ def take_screenshot(target, dimensions, timeout_ms=None):
             img_file_path = img_file.name
 
         command = [
-            "chromium-headless-shell", target, "--headless",
-            f"--screenshot={img_file_path}", f'--window-size={dimensions[0]},{dimensions[1]}',
-            "--no-sandbox", "--disable-gpu", "--disable-software-rasterizer",
-            "--disable-dev-shm-usage", "--hide-scrollbars"
+            "chromium-headless-shell",
+            target,
+            "--headless",
+            f"--screenshot={img_file_path}",
+            f"--window-size={dimensions[0]},{dimensions[1]}",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--use-gl=swiftshader",
+            "--hide-scrollbars",
+            "--in-process-gpu",
+            "--js-flags=--jitless",
+            "--disable-zero-copy",
+            "--disable-gpu-memory-buffer-compositor-resources",
+            "--disable-extensions",
+            "--disable-plugins",
+            "--mute-audio",
+            "--no-sandbox"
         ]
         if timeout_ms:
             command.append(f"--timeout={timeout_ms}")
@@ -124,12 +137,13 @@ def take_screenshot(target, dimensions, timeout_ms=None):
             return None
 
         # Load the image using PIL
-        image = Image.open(img_file_path)
+        with Image.open(img_file_path) as img:
+            image = img.copy()
 
         # Remove image files
         os.remove(img_file_path)
 
     except Exception as e:
         logger.error(f"Failed to take screenshot: {str(e)}")
-    
+
     return image
